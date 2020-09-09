@@ -15,11 +15,14 @@ type
   private
     FLastResponse: AnsiString;
     FLastFetched: TDateTime;
+    FLastUnsuccessful: TDateTime;
+    FLastResponseCode: integer;
     FAPIKey: AnsiString;
     function fetch(const url: string): boolean;
     function getLastResponse: AnsiString;
   public
     property LastResponse: AnsiString read getLastResponse;
+    property ResponseCode: integer read FLastResponseCode;
     property APIKey: AnsiString write FAPIKey;
     constructor Create; overload;
     constructor Create(const Key: String); overload;
@@ -29,6 +32,7 @@ implementation
 
 uses IdHTTP, IdSSLOpenSSL,IdCompressorZLib;
 
+const WaitIfFailed = 5;
 { TOctopus }
 
 constructor TOctopus.Create;
@@ -41,7 +45,15 @@ begin
   FAPIKey := key;
   FLastResponse := '';
   FLastFetched := 0;
+  FLastUnsuccessful := 0;
 end;
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// fetches API, if previously unsuccessful, it will fail further attempts for
+//   [const WaitIfFailed] minutes and ResponseCode will be -1.
+//
+////////////////////////////////////////////////////////////////////////////////
 
 function TOctopus.fetch(const url: string): boolean;
 var Id_HandlerSocket : TIdSSLIOHandlerSocketOpenSSL;
@@ -49,6 +61,12 @@ var Id_HandlerSocket : TIdSSLIOHandlerSocketOpenSSL;
     s: string;
 begin
   result := false;
+  if FLastUnsuccessful <> 0 then
+    if IncMinute(FLastUnsuccessful, WaitIfFailed) < now then
+    begin
+      FLastResponseCode := -1;
+      exit;
+    end;
   IdHTTP1 := TIdHTTP.Create(nil);
   IdHTTP1.Compressor := TIdCompressorZLib.Create(nil);
   Id_HandlerSocket := TIdSSLIOHandlerSocketOpenSSL.Create(nil);
@@ -65,8 +83,10 @@ begin
     idHTTP1.Request.BasicAuthentication := true;
     IdHTTP1.Request.UserAgent := OctopusUserAgent;
     IdHTTP1.Request.Username := FAPIKey;
+    FLastUnsuccessful := now;
     s := IdHTTP1.Get(url);
-    if IdHTTP1.ResponseCode = 200 then
+    FLastResponseCode := IdHTTP1.ResponseCode;
+    if FLastResponseCode = 200 then
     begin
       result := true;
       FLastResponse := s;
@@ -77,6 +97,7 @@ begin
     if Assigned(IdHTTP1.Compressor) then IdHTTP1.Compressor.Free;
     IdHTTP1.Free;
   end;
+  FLastUnsuccessful := 0;
 end;
 
 function TOctopus.getLastResponse: AnsiString;
