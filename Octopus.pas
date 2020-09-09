@@ -26,6 +26,7 @@ type
     property APIKey: AnsiString write FAPIKey;
     constructor Create; overload;
     constructor Create(const Key: String); overload;
+    procedure Refresh;
   end;
 
 implementation
@@ -103,9 +104,14 @@ end;
 function TOctopus.getLastResponse: AnsiString;
 begin
   if IncHour(FLastFetched, 4) < now then
-    fetch(OctopusURL + 'v1/products/AGILE-18-02-21/' +
-      'electricity-tariffs/E-1R-AGILE-18-02-21-N/standard-unit-rates/');
+    Refresh;
   result := FLastResponse
+end;
+
+procedure TOctopus.Refresh;
+begin
+  fetch(OctopusURL + 'v1/products/AGILE-18-02-21/' +
+      'electricity-tariffs/E-1R-AGILE-18-02-21-N/standard-unit-rates/');
 end;
 
 end.
