@@ -56,7 +56,6 @@ type
     property APIKey: AnsiString write FAPIKey;
     property Region: RRegion read FRegion;
     property Tariff: string read FTariff write FTariff;
-    constructor Create; overload;
     constructor Create(const Key: String; const region: char); overload;
     procedure Refresh;
   end;
@@ -69,13 +68,9 @@ const WaitIfFailed = 5;
       CacheHours = 4;
 { TOctopus }
 
-constructor TOctopus.Create;
-begin
-  Create('', #0);
-end;
-
 constructor TOctopus.Create(const key: String; const region: char);
 begin
+  inherited Create;
   FAPIKey := key;
   FRegion.Character := region;
   FLastResponse := '';
