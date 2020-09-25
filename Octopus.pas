@@ -6,8 +6,10 @@ uses System.SysUtils, System.DateUtils;
 
 const
   OctopusURL = 'https://api.octopus.energy/';
+  OctopusEndPoint = 'v1/products/';
   OctopusUserAgent = 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) '+
     'Gecko/20100101 Firefox/12.0';
+  OctopusTariff = 'AGILE-18-02-21';
 
 type
 
@@ -45,14 +47,20 @@ type
     FLastFetched: TDateTime;
     FLastUnsuccessful: TDateTime;
     FLastResponseCode: integer;
+    FLastResponseText: string;
     FAPIKey: AnsiString;
+    FURL: string;
+    FEndpoint: string;
+    FParameters: string;
     FRegion: RRegion;
     FTariff: string;
     function fetch(const url: string): boolean;
     function getLastResponse: AnsiString;
   public
+    property URL: string read FURL;
     property LastResponse: AnsiString read getLastResponse;
     property ResponseCode: integer read FLastResponseCode;
+    property ResponseText: string read FLastResponseText;
     property APIKey: AnsiString write FAPIKey;
     property Region: RRegion read FRegion;
     property Tariff: string read FTariff write FTariff;
@@ -72,11 +80,13 @@ constructor TOctopus.Create(const key: String; const region: char);
 begin
   inherited Create;
   FAPIKey := key;
+  FURL := OctopusURL;
+  FEndPoint := OctopusEndPoint;
   FRegion.Character := region;
   FLastResponse := '';
   FLastFetched := 0;
   FLastUnsuccessful := 0;
-  FTariff := 'AGILE-18-02-21';
+  FTariff := OctopusTariff;
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -96,6 +106,7 @@ begin
     if IncMinute(FLastUnsuccessful, WaitIfFailed) < now then
     begin
       FLastResponseCode := -1;
+      FLastResponseText := 'please wait';
       exit;
     end;
   IdHTTP1 := TIdHTTP.Create(nil);
@@ -117,6 +128,7 @@ begin
     FLastUnsuccessful := now;
     s := IdHTTP1.Get(url);
     FLastResponseCode := IdHTTP1.ResponseCode;
+    FLastResponseText := IdHTTP1.ResponseText;
     if FLastResponseCode = 200 then
     begin
       result := true;
@@ -147,9 +159,9 @@ end;
 
 procedure TOctopus.Refresh;
 begin
-  fetch(OctopusURL + 'v1/products/' + FTariff + '/' +
-      'electricity-tariffs/E-1R-' + FTariff + '-' + FRegion.Character +
-      '/standard-unit-rates/');
+  FParameters := FTariff + '/electricity-tariffs/E-1R-' + FTariff +
+    '-' + FRegion.Character + '/standard-unit-rates/';
+  fetch(FURL + FEndPoint + FParameters);
 end;
 
 { RRegion }
